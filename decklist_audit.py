@@ -3,34 +3,35 @@ import requests
 import re
 import time 
 
-# --- Versioning & Metadata ---
-VERSION = "1.4.3"
-LAST_UPDATED = "2025-12-28"
-CHANGELOG = {
-    "1.4.3": "Renamed tabs to 'Suggestions for Your Deck' and 'Uniqueness of Brew'.",
-    "1.4.2": "Added explicit 100ms delay to Scryfall calls and a progress bar.",
-    "1.4.1": "Implemented Lazy Loading for images in suggestions.",
-}
-
-st.set_page_config(page_title=f"EDHREC Auditor v{VERSION}", layout="wide", page_icon="🎴")
+# --- Configuration ---
+st.set_page_config(page_title="EDHREC Deck Auditor", layout="wide", page_icon="🎴")
 
 # --- Helper Functions ---
 @st.cache_data(show_spinner=False, ttl=3600)
-def get_scryfall_image(card_name):
-    """Fetches card art from Scryfall with a 100ms delay to respect rate limits."""
+def get_scryfall_data(card_name):
+    """Fetches card art and price from Scryfall with rate limiting."""
     time.sleep(0.1) 
     url = f"https://api.scryfall.com/cards/named?fuzzy={card_name}"
     try:
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
+            # Extract Image
             if 'image_uris' in data:
-                return data['image_uris']['normal']
+                img = data['image_uris']['normal']
             elif 'card_faces' in data:
-                return data['card_faces'][0]['image_uris']['normal']
-        return "https://errors.scryfall.com/unknown.jpg" 
+                img = data['card_faces'][0]['image_uris']['normal']
+            else:
+                img = "https://errors.scryfall.com/unknown.jpg"
+            
+            # Extract Price
+            price = data.get('prices', {}).get('usd')
+            price_str = f"${price}" if price else "Price N/A"
+            
+            return {"img": img, "price": price_str}
+        return {"img": "https://errors.scryfall.com/unknown.jpg", "price": "N/A"}
     except:
-        return None
+        return {"img": "https://errors.scryfall.com/unknown.jpg", "price": "Error"}
 
 def get_edhrec_data(commander_name):
     name = re.sub(r'[^a-z0-9\s-]', '', commander_name.lower()).replace(" ", "-")
@@ -57,25 +58,22 @@ def display_card_grid(card_list, cols=4, progress_label="Loading cards..."):
         row = card_list[i : i + cols]
         st_cols = st.columns(cols)
         for idx, card_name in enumerate(row):
-            img_url = get_scryfall_image(card_name)
-            if img_url:
-                st_cols[idx].image(img_url, use_container_width=True, caption=card_name)
+            card_info = get_scryfall_data(card_name)
+            with st_cols[idx]:
+                st.image(card_info["img"], use_container_width=True)
+                st.caption(f"**{card_name}**")
+                st.write(f"Price: {card_info['price']}")
         
         percent_complete = min((i + cols) / total_cards, 1.0)
         progress_bar.progress(percent_complete, text=progress_label)
     
     progress_bar.empty()
 
-# --- Sidebar ---
+# --- Sidebar (Cleaned) ---
 with st.sidebar:
-    st.title(f"Auditor v{VERSION}")
-    with st.expander("📜 Version History"):
-        for ver, desc in CHANGELOG.items():
-            st.markdown(f"**{ver}**: {desc}")
-    st.divider()
     st.header("📋 Deck Input")
     commander = st.text_input("Commander Name", placeholder="e.g. Atraxa, Praetors' Voice")
-    decklist_raw = st.text_area("Cards in the 99", height=400)
+    decklist_raw = st.text_area("Cards in the 99", height=500)
     
     user_deck = [clean_card_name(l) for l in decklist_raw.split('\n') if l.strip()]
 
@@ -93,7 +91,6 @@ else:
         cardlists = data.get('container', {}).get('json_dict', {}).get('cardlists', [])
         edhrec_names = {c['name'] for cl in cardlists for c in cl.get('cardviews', [])}
         
-        # RENAMED TABS
         tab1, tab2 = st.tabs(["💎 Suggestions for Your Deck", "🖼️ Uniqueness of Brew"])
 
         with tab1:
@@ -140,5 +137,3 @@ else:
             with st.expander("🧪 Your Unique Picks", expanded=True):
                 st.info("These card choices make your deck unique! They are not included in the EDHREC page for this commander.")
                 display_card_grid(unique, progress_label="Loading your unique picks...")
-
-st.sidebar.caption(f"Last updated: {LAST_UPDATED}")
