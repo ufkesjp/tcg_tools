@@ -96,7 +96,7 @@ else:
         with tab1:
             st.header(f"Recommendations for {commander} from EDHREC")
             target_cats = [
-                "High Synergy Cards", "Top Cards", "Game Changes", "Creatures", 
+                "New Cards", "High Synergy Cards", "Top Cards", "Game Changes", "Creatures", 
                 "Instants", "Sorceries", "Utility Artifacts", "Enchantments", 
                 "Battles", "Planeswalkers", "Utility Lands", "Artifacts", "Lands"
             ]
