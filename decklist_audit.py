@@ -94,7 +94,7 @@ else:
         tab1, tab2 = st.tabs(["💎 Suggestions for Your Deck", "🖼️ Uniqueness of Brew"])
 
         with tab1:
-            st.header(f"Recommendations for {commander}")
+            st.header(f"Recommendations for {commander} from EDHREC")
             target_cats = [
                 "High Synergy Cards", "Top Cards", "Game Changes", "Creatures", 
                 "Instants", "Sorceries", "Utility Artifacts", "Enchantments", 
